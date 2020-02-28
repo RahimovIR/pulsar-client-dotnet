@@ -1,6 +1,6 @@
 name: .NET Core
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   build:
@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v2
@@ -29,14 +29,14 @@ jobs:
     - name: Build Release
       run: dotnet build -c Release
     
-    - if: matrix.os == 'macos-latest'
-      name: Install Snappy
+    - name: Brew Install Snappy
+      if: startsWith(matrix.os, 'ubuntu')
       uses: artemnovichkov/action-homebrew@0.1.0
       with:
         args: install snappy
         
-    - if: matrix.os == 'macos-latest'
-      name: Install ZSTD
+    - name: Brew Install Snappy
+      if: startsWith(matrix.os, 'ubuntu')      
       uses: artemnovichkov/action-homebrew@0.1.0
       with:
         args: install zstd
