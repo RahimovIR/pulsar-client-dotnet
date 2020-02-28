@@ -1,0 +1,22 @@
+name: .NET Core
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 2.2.108
+    - name: Run Unit Tests
+      run: 
+        dotnet build -c Release
+        cd tests/UnitTests
+        dotnet test -c Release --no-build
