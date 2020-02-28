@@ -29,15 +29,11 @@ jobs:
     - name: Dotnet Build Release
       run: dotnet build -c Release --no-restore
     
-    - name: Apt-get Install Snappy
+    - name: Apt-get Install Snappy & ZSTD
       if: startsWith(matrix.os, 'ubuntu')
-      run: apt-get install libsnappy1 libsnappy-dev
-        
-    - name: Brew Install Snappy
-      if: startsWith(matrix.os, 'ubuntu')      
-      uses: artemnovichkov/action-homebrew@0.1.0
-      with:
-        args: install zstd
+      run: |
+        sudo apt-get install libsnappy1 libsnappy-dev
+        sudo apt-get install -y libzstd-dev
     
     - name: Run Unit Tests
       run: |
