@@ -4,23 +4,32 @@ on: [push, pull_request]
 
 jobs:
   build:
-
+  
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
+
     steps:
     - uses: actions/checkout@v2
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 2.2.108
-    - name: Install local Paket
+        dotnet-version: 3.1.100
+
+    - name: Install Paket tool locally
       run: dotnet tool install paket --tool-path .paket
+      
+    - name: Paket Install
+      run: .paket/paket install
+    
+    - name: Paket Restore
+      run: .paket/paket restore
+    
+    - name: Build Release
+      run: dotnet build -c Release
+    
     - name: Run Unit Tests
       run: |
-        .paket/paket install
-        .paket/paket restore
-        dotnet build -c Release
         cd tests/UnitTests
         dotnet test -c Release --no-build
