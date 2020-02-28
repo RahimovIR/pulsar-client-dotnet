@@ -23,17 +23,15 @@ jobs:
     - name: Paket Install
       run: .paket/paket install
     
-    - name: Paket Restore
-      run: .paket/paket restore
+    - name: Dotnet Restore
+      run: dotnet restore
     
-    - name: Build Release
-      run: dotnet build -c Release
+    - name: Dotnet Build Release
+      run: dotnet build -c Release --no-restore
     
-    - name: Brew Install Snappy
+    - name: Apt-get Install Snappy
       if: startsWith(matrix.os, 'ubuntu')
-      uses: artemnovichkov/action-homebrew@0.1.0
-      with:
-        args: install snappy
+      run: apt-get install libsnappy1 libsnappy-dev
         
     - name: Brew Install Snappy
       if: startsWith(matrix.os, 'ubuntu')      
