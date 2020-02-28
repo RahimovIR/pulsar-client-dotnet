@@ -32,7 +32,7 @@ jobs:
     - name: Apt-get Install Snappy & ZSTD
       if: startsWith(matrix.os, 'ubuntu')
       run: |
-        sudo apt-get install libsnappy1 libsnappy-dev
+        sudo apt-get install -y libsnappy-dev
         sudo apt-get install -y libzstd-dev
     
     - name: Run Unit Tests
