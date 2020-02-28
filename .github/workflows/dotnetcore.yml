@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
     - uses: actions/checkout@v2
@@ -29,11 +29,25 @@ jobs:
     - name: Dotnet Build Release
       run: dotnet build -c Release --no-restore
     
-    - name: Apt-get Install Snappy & ZSTD
+    - name: Apt-get Install Snappy & ZSTD (Ubuntu)
       if: startsWith(matrix.os, 'ubuntu')
       run: |
         sudo apt-get install -y libsnappy-dev
         sudo apt-get install -y libzstd-dev
+        
+    - name: Install Snappy (MacOS)
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        curl -X GET http://go-snappy.com/Snappy.zip --output snappy.zip
+        unzip snappy.zip
+        
+    - name: Install Snappy (MacOS)
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        curl -X GET https://codeload.github.com/facebook/zstd/tar.gz/v1.4.4 --output libz
+        tar -xvf libz
+        cd zstd-1.4.4
+        make install
     
     - name: Run Unit Tests
       run: |
