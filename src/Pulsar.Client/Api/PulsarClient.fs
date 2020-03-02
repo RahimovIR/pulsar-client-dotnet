@@ -101,10 +101,10 @@ type PulsarClient(config: PulsarClientConfiguration) as this =
         with get () = Log.Logger
         and set (value) = Log.Logger <- value
 
-    member this.SubscribeAsync consumerConfig =
+    member this.SubscribeAsync interceptors consumerConfig =
         task {
             checkIfActive()
-            return! this.SingleTopicSubscribeAsync consumerConfig
+            return! this.SingleTopicSubscribeAsync interceptors consumerConfig
         }
 
     member this.CloseAsync() =
@@ -114,7 +114,7 @@ type PulsarClient(config: PulsarClientConfiguration) as this =
             return! t
         }
 
-    member private this.SingleTopicSubscribeAsync (consumerConfig: ConsumerConfiguration) =
+    member private this.SingleTopicSubscribeAsync (interceptors: ConsumerInterceptors) (consumerConfig: ConsumerConfiguration) =
         task {
             checkIfActive()
             Log.Logger.LogDebug("SingleTopicSubscribeAsync started")
@@ -122,11 +122,11 @@ type PulsarClient(config: PulsarClientConfiguration) as this =
             let removeConsumer = fun consumer -> mb.Post(RemoveConsumer consumer)
             if (metadata.Partitions > 0)
             then
-                let! consumer = MultiTopicsConsumerImpl.Init(consumerConfig, config, connectionPool, metadata.Partitions, lookupService, removeConsumer)
+                let! consumer = MultiTopicsConsumerImpl.Init(consumerConfig, config, connectionPool, metadata.Partitions, lookupService, interceptors, removeConsumer)
                 mb.Post(AddConsumer consumer)
                 return consumer :> IConsumer
             else
-                let! consumer = ConsumerImpl.Init(consumerConfig, config, connectionPool, -1, None, lookupService, true, removeConsumer)
+                let! consumer = ConsumerImpl.Init(consumerConfig, config, connectionPool, -1, None, lookupService, true, interceptors, removeConsumer)
                 mb.Post(AddConsumer consumer)
                 return consumer :> IConsumer
         }

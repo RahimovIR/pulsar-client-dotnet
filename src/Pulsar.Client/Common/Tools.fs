@@ -53,6 +53,10 @@ let reraize<'a> ex =
     (ExceptionDispatchInfo.Capture ex).Throw()
     Unchecked.defaultof<'a>
 
+let throwIfError (result:Result<'a,Exception>) =
+    match result with
+    | Ok v -> v
+    | Error exn -> raise exn  
 // Mix
 
 let asyncDelay delay work =

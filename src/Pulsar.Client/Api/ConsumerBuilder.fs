@@ -4,7 +4,7 @@ open Pulsar.Client.Common
 open Pulsar.Client.Internal
 open System
 
-type ConsumerBuilder private (client: PulsarClient, config: ConsumerConfiguration) =
+type ConsumerBuilder private (client: PulsarClient, config: ConsumerConfiguration, interceptors: ConsumerInterceptors) =
 
     [<Literal>]
     let MIN_ACK_TIMEOUT_MILLIS = 1000
@@ -38,7 +38,7 @@ type ConsumerBuilder private (client: PulsarClient, config: ConsumerConfiguratio
                     c.KeySharedPolicy.IsSome && c.SubscriptionType <> SubscriptionType.KeyShared
                 ) "KeySharedPolicy must be set with KeyShared subscription")
 
-    new(client: PulsarClient) = ConsumerBuilder(client, ConsumerConfiguration.Default)
+    new(client: PulsarClient) = ConsumerBuilder(client, ConsumerConfiguration.Default, ConsumerInterceptors([]))
 
     member this.Topic topic =
         ConsumerBuilder(
@@ -46,74 +46,86 @@ type ConsumerBuilder private (client: PulsarClient, config: ConsumerConfiguratio
             { config with
                 Topic = topic
                     |> invalidArgIfBlankString "Topic must not be blank."
-                    |> fun t -> TopicName(t.Trim()) })
+                    |> fun t -> TopicName(t.Trim()) },
+            interceptors)
 
     member this.ConsumerName name =
         ConsumerBuilder(
             client,
             { config with
-                ConsumerName = name |> invalidArgIfBlankString "Consumer name must not be blank." })
+                ConsumerName = name |> invalidArgIfBlankString "Consumer name must not be blank." },
+            interceptors)
 
     member this.SubscriptionName subscriptionName =
         ConsumerBuilder(
             client,
             { config with
-                SubscriptionName = subscriptionName |> invalidArgIfBlankString "Subscription name must not be blank." })
+                SubscriptionName = subscriptionName |> invalidArgIfBlankString "Subscription name must not be blank." },
+            interceptors)
 
     member this.SubscriptionType subscriptionType =
         ConsumerBuilder(
             client,
             { config with
-                SubscriptionType = subscriptionType  })
+                SubscriptionType = subscriptionType  },
+            interceptors)
 
     member this.SubscriptionMode subscriptionMode =
         ConsumerBuilder(
             client,
             { config with
-                SubscriptionMode = subscriptionMode  })
+                SubscriptionMode = subscriptionMode  },
+            interceptors)
     
     member this.ReceiverQueueSize receiverQueueSize =
         ConsumerBuilder(
             client,
             { config with
-                ReceiverQueueSize = receiverQueueSize |> invalidArgIfNotGreaterThanZero "ReceiverQueueSize should be greater than 0."  })
+                ReceiverQueueSize = receiverQueueSize |> invalidArgIfNotGreaterThanZero "ReceiverQueueSize should be greater than 0."  },
+            interceptors)
 
     member this.SubscriptionInitialPosition subscriptionInitialPosition =
         ConsumerBuilder(
             client,
             { config with
-                SubscriptionInitialPosition = subscriptionInitialPosition  })
+                SubscriptionInitialPosition = subscriptionInitialPosition  },
+            interceptors)
 
     member this.AckTimeout ackTimeout =
         ConsumerBuilder(
             client,
             { config with
                 AckTimeout = ackTimeout |> invalidArgIf (fun arg ->
-                   arg <> TimeSpan.Zero && arg < TimeSpan.FromMilliseconds(float MIN_ACK_TIMEOUT_MILLIS)) (sprintf "Ack timeout should be greater than %i ms" MIN_ACK_TIMEOUT_MILLIS)  })
+                   arg <> TimeSpan.Zero && arg < TimeSpan.FromMilliseconds(float MIN_ACK_TIMEOUT_MILLIS)) (sprintf "Ack timeout should be greater than %i ms" MIN_ACK_TIMEOUT_MILLIS)  },
+            interceptors)
 
     member this.AckTimeoutTickTime ackTimeoutTickTime =
         ConsumerBuilder(
             client,
             { config with
-                AckTimeoutTickTime = ackTimeoutTickTime  })
+                AckTimeoutTickTime = ackTimeoutTickTime  },
+            interceptors)
 
     member this.AcknowledgementsGroupTime ackGroupTime =
         ConsumerBuilder(
             client,
             { config with
-                AcknowledgementsGroupTime = ackGroupTime  })
+                AcknowledgementsGroupTime = ackGroupTime  },
+            interceptors)
 
     member this.ReadCompacted readCompacted =
         ConsumerBuilder(
             client,
             { config with
-                ReadCompacted = readCompacted  })
+                ReadCompacted = readCompacted  },
+            interceptors)
 
     member this.NegativeAckRedeliveryDelay negativeAckRedeliveryDelay =
         ConsumerBuilder(
             client,
             { config with
-                NegativeAckRedeliveryDelay = negativeAckRedeliveryDelay  })
+                NegativeAckRedeliveryDelay = negativeAckRedeliveryDelay  },
+            interceptors)
 
     member this.DeadLettersPolicy (deadLettersPolicy: DeadLettersPolicy) =
 
@@ -136,7 +148,8 @@ type ConsumerBuilder private (client: PulsarClient, config: ConsumerConfiguratio
             client,
             { config with
                 AckTimeoutTickTime = ackTimeoutTickTime
-                DeadLettersProcessor = deadLettersProcessor })
+                DeadLettersProcessor = deadLettersProcessor },
+            interceptors)
 
     member this.StartMessageIdInclusive () =
         { config with
@@ -148,7 +161,8 @@ type ConsumerBuilder private (client: PulsarClient, config: ConsumerConfiguratio
             { config with
                 BatchReceivePolicy = batchReceivePolicy
                     |> invalidArgIfDefault "BatchReceivePolicy can't be null"
-                    |> fun policy -> policy.Verify(); policy })
+                    |> fun policy -> policy.Verify(); policy },
+            interceptors)
 
     member this.KeySharedPolicy (keySharedPolicy: KeySharedPolicy) =
         ConsumerBuilder(
@@ -157,9 +171,14 @@ type ConsumerBuilder private (client: PulsarClient, config: ConsumerConfiguratio
                 KeySharedPolicy = keySharedPolicy
                     |> invalidArgIfDefault "KeySharedPolicy can't be null"
                     |> fun policy -> keySharedPolicy.Validate(); policy
-                    |> Some })
+                    |> Some },
+            interceptors)
 
+    member this.Intercept interceptorss =
+        let consumerInters = ConsumerInterceptors(interceptorss @ interceptors.Interceptors)
+        ConsumerBuilder(client, config, consumerInters)
+    
     member this.SubscribeAsync() =
         config
         |> verify
-        |> client.SubscribeAsync
+        |> client.SubscribeAsync interceptors
