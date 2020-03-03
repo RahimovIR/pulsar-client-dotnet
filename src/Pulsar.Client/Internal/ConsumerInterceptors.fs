@@ -5,66 +5,50 @@ open Microsoft.Extensions.Logging
 open Pulsar.Client.Api
 open Pulsar.Client.Common
 
-type ConsumerInterceptors(interceptor: IConsumerInterceptor list) =
-
-     let exceptionPreocess result funAction =
-          let tryWrapFun exn inter =
-               try
-                    funAction exn inter
-               with e ->
-                    Log.Logger.LogWarning("Error executing interceptor callback ", e)
-                    ()
-          
-          match result with
-          | Result.Ok _ -> interceptor |> List.iter (tryWrapFun null)
-          | Result.Error exn -> interceptor |> List.iter (tryWrapFun exn)
-     member this.Interceptors = interceptor
+type internal ConsumerInterceptors(interceptors: IConsumerInterceptor array) =
+     member this.Interceptors = interceptors
+     static member Empty with get() = ConsumerInterceptors(Array.empty)
      
-     static member Empty with get() = ConsumerInterceptors([])
-     
-     member this.BeforeConsume (consumer: IConsumer) (msg: Message) =
-          let funAction (acc:Message) (inter:IConsumerInterceptor) =
+     member this.BeforeConsume (consumer: IConsumer, msg: Message) =
+          let mutable interceptorMessage = msg         
+          for interceptor in interceptors do
                try
-                    inter.BeforeConsume(consumer, acc)
+                    interceptorMessage <- interceptor.BeforeConsume(consumer, interceptorMessage)
                with e ->
-                    Log.Logger.LogWarning("Error executing interceptor beforeConsume callback ", e)
-                    acc
-             
-          interceptor |> List.fold funAction msg
+                    Log.Logger.LogWarning("Error executing interceptor beforeConsume callback topic: {0} consumerId: {1}", consumer.Topic, consumer.ConsumerId, e)
+          interceptorMessage
         
-     member this.OnAcknowledge (consumer: IConsumer)(msgId: MessageId) (result:Result<_,Exception>) =
-          let funAction exn (inter:IConsumerInterceptor) =
-               inter.OnAcknowledge(consumer, msgId, exn)
-               
-          exceptionPreocess result funAction
-          result
+     member this.OnAcknowledge (consumer: IConsumer, msgId: MessageId, exn: Exception) =
+          for interceptor in interceptors do
+               try
+                    interceptor.OnAcknowledge(consumer, msgId, exn)
+               with e ->
+                    Log.Logger.LogWarning("Error executing interceptor OnAcknowledge callback", e);
+                    
+     member this.OnAcknowledgeCumulative (consumer: IConsumer, msgId: MessageId, exn: Exception)=
+          for interceptor in interceptors do
+               try
+                    interceptor.OnAcknowledgeCumulative(consumer, msgId, exn)
+               with e ->
+                    Log.Logger.LogWarning("Error executing interceptor OnAcknowledgeCumulative callback", e);
 
-     member this.OnAcknowledgeCumulative (consumer: IConsumer) (msgId: MessageId) (result:Result<_,Exception>) =
-          let funAction exn (inter:IConsumerInterceptor) =
-               inter.OnAcknowledgeCumulative(consumer, msgId, exn)
-               
-          exceptionPreocess result funAction
-          result
-
-     member this.OnNegativeAcksSend (consumer: IConsumer) (msgId: MessageId) (result:Result<_,Exception>) =
-          let funAction exn (inter:IConsumerInterceptor) =
-               inter.OnNegativeAcksSend(consumer, msgId, exn)
-               
-          exceptionPreocess result funAction
-          result
+     member this.OnNegativeAcksSend (consumer: IConsumer, msgId: MessageId, exn: Exception) =
+          for interceptor in interceptors do
+               try
+                    interceptor.OnAcknowledgeCumulative(consumer, msgId, exn)
+               with e ->
+                    Log.Logger.LogWarning("Error executing interceptor OnNegativeAcksSend callback", e);
           
-     member this.OnAckTimeoutSend (consumer: IConsumer) (msgId: MessageId) (result:Result<_,Exception>) =
-          let funAction exn (inter:IConsumerInterceptor) =
-               inter.OnAckTimeoutSend(consumer, msgId, exn)
-               
-          exceptionPreocess result funAction
-          result
+     member this.OnAckTimeoutSend (consumer: IConsumer, msgId: MessageId, exn: Exception)  =
+          for interceptor in interceptors do
+               try
+                    interceptor.OnAcknowledgeCumulative(consumer, msgId, exn)
+               with e ->
+                    Log.Logger.LogWarning("Error executing interceptor OnAckTimeoutSend callback", e);
           
      member this.Close() =
-          let funAction (inter:IConsumerInterceptor) =
+          for interceptor in interceptors do
                try
-                    inter.Close()
+                    interceptor.Close()
                with e ->
-                    Log.Logger.LogWarning("Error executing interceptor close callback ", e)
-                    ()
-          interceptor |> List.iter funAction
+                    Log.Logger.LogWarning("Fail to close consumer interceptor", e);

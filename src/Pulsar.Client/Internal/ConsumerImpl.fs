@@ -14,7 +14,7 @@ open pulsar.proto
 open System.Linq
 open System.Threading
 
-type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clientConfig: PulsarClientConfiguration, connectionPool: ConnectionPool,
+type internal ConsumerImpl (consumerConfig: ConsumerConfiguration, clientConfig: PulsarClientConfiguration, connectionPool: ConnectionPool,
                            partitionIndex: int, startMessageId: MessageId option, lookup: BinaryLookupService,
                            startMessageRollbackDuration: TimeSpan, createTopicIfDoesNotExist: bool, interceptors: ConsumerInterceptors, cleanup: ConsumerImpl -> unit) as this =
 
@@ -273,9 +273,7 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
             if (messages.CanAdd(msgPeeked)) then
                 let msg = dequeueMessage()
                 messageProcessed msg
-                msg
-                |> interceptors.BeforeConsume this 
-                |> messages.Add
+                messages.Add(interceptors.BeforeConsume(this, msg))
             else
                 shouldContinue <- false
         Log.Logger.LogDebug("{0} BatchFormed with size {1}", prefix, messages.Size)
@@ -303,7 +301,7 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
 
     let replyWithMessage (channel: AsyncReplyChannel<ResultOrException<Message>>) message =
         messageProcessed message
-        let interceptMsg = interceptors.BeforeConsume this message
+        let interceptMsg = interceptors.BeforeConsume(this, message)
         channel.Reply (Result interceptMsg)
 
     let stopConsumer () =
@@ -721,7 +719,7 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
 
     member this.HasMessageAvailableAsync() =
         task {
-            connectionHandler.CheckIfActive() |> throwIfError
+            connectionHandler.CheckIfActive() |> throwIfNotNull
             let! result = mb.PostAndAsyncReply(fun channel -> HasMessageAvailable channel)
             return! result
         }
@@ -751,7 +749,7 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
 
     member this.ReceiveFsharpAsync() =
         async {
-            connectionHandler.CheckIfActive() |> throwIfError
+            connectionHandler.CheckIfActive() |> throwIfNotNull
             return! mb.PostAndAsyncReply(Receive)
         }
     
@@ -759,7 +757,7 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
         
         member this.ReceiveAsync() =
             task {
-                connectionHandler.CheckIfActive() |> throwIfError
+                connectionHandler.CheckIfActive() |> throwIfNotNull
                 match! mb.PostAndAsyncReply(Receive) with
                 | Result msg ->
                     return msg
@@ -769,7 +767,7 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
 
         member this.BatchReceiveAsync() =
             task {
-                connectionHandler.CheckIfActive() |> throwIfError
+                connectionHandler.CheckIfActive() |> throwIfNotNull
                 match! mb.PostAndAsyncReply(BatchReceive) with
                 | Result msgs ->
                     return msgs
@@ -779,19 +777,19 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
 
         member this.AcknowledgeAsync (msgId: MessageId) =
             task {
-                connectionHandler.CheckIfActive()
-                |> interceptors.OnAcknowledge this msgId
-                |> throwIfError
+                let exn = connectionHandler.CheckIfActive()
+                interceptors.OnAcknowledge(this, msgId, exn)
+                throwIfNotNull exn
                 
                 mb.Post(Acknowledge(msgId, AckType.Individual))
             }
             
         member this.AcknowledgeAsync (msgs: Messages) =
             task {
-                let connectionStatus = connectionHandler.CheckIfActive()
+                let exn = connectionHandler.CheckIfActive()
                 for msg in msgs do
-                    interceptors.OnAcknowledge this  msg.MessageId connectionStatus |> ignore
-                connectionStatus |> throwIfError
+                    interceptors.OnAcknowledge(this, msg.MessageId, exn)
+                throwIfNotNull exn
 
                 for msg in msgs do
                     mb.Post(Acknowledge(msg.MessageId, AckType.Individual))
@@ -799,29 +797,29 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
 
         member this.AcknowledgeCumulativeAsync (msgId: MessageId) =
             task {
-                connectionHandler.CheckIfActive()
-                |> interceptors.OnAcknowledgeCumulative this msgId
-                |> throwIfError
+                let exn = connectionHandler.CheckIfActive()
+                interceptors.OnAcknowledgeCumulative(this, msgId, exn)
+                throwIfNotNull exn
 
                 mb.Post(Acknowledge(msgId, AckType.Cumulative))
             }
 
         member this.RedeliverUnacknowledgedMessagesAsync () =
             task {
-                connectionHandler.CheckIfActive() |> throwIfError
+                connectionHandler.CheckIfActive() |> throwIfNotNull
                 do! mb.PostAndAsyncReply(RedeliverAllUnacknowledged)
             }
 
         member this.SeekAsync (messageId: MessageId) =
             task {
-                connectionHandler.CheckIfActive() |> throwIfError
+                connectionHandler.CheckIfActive() |> throwIfNotNull
                 let! result = mb.PostAndAsyncReply(fun channel -> SeekAsync (MessageId messageId, channel))
                 return! result
             }
 
         member this.SeekAsync (timestamp: uint64) =
             task {
-                connectionHandler.CheckIfActive() |> throwIfError
+                connectionHandler.CheckIfActive() |> throwIfNotNull
                 let! result = mb.PostAndAsyncReply(fun channel -> SeekAsync (Timestamp timestamp, channel))
                 return! result
             }
@@ -839,7 +837,7 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
 
         member this.UnsubscribeAsync() =
             task {
-                connectionHandler.CheckIfActive() |> throwIfError
+                connectionHandler.CheckIfActive() |> throwIfNotNull
                 let! result = mb.PostAndAsyncReply(ConsumerMessage.Unsubscribe)
                 return! result
             }
@@ -848,19 +846,19 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
 
         member this.NegativeAcknowledge msgId =
             task {
-                connectionHandler.CheckIfActive()
-                |> interceptors.OnNegativeAcksSend this msgId
-                |> throwIfError
+                let exn = connectionHandler.CheckIfActive()
+                interceptors.OnNegativeAcksSend(this, msgId, exn)
+                throwIfNotNull exn
 
                 mb.Post(NegativeAcknowledge(msgId))
             }
 
         member this.NegativeAcknowledge (msgs: Messages)  =
             task {
-                let connectionStatus = connectionHandler.CheckIfActive()
+                let exn = connectionHandler.CheckIfActive()
                 for msg in msgs do
-                    interceptors.OnNegativeAcksSend this msg.MessageId connectionStatus |> ignore
-                connectionStatus |> throwIfError
+                    interceptors.OnNegativeAcksSend(this, msg.MessageId, exn)
+                throwIfNotNull exn
 
                 for msg in msgs do
                     mb.Post(NegativeAcknowledge(msg.MessageId))

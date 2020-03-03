@@ -77,7 +77,7 @@ let tests =
                     }:> Task)
 
             do! Task.WhenAll(producerTask, consumerTask) |> Async.AwaitTask
-
+            do! client.CloseAsync() |> Async.AwaitTask
             Log.Debug("Finished Send and receive 10 messages and check BeforeConsume")
         }
     ]

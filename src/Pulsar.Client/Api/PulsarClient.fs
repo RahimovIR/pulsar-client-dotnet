@@ -101,7 +101,7 @@ type PulsarClient(config: PulsarClientConfiguration) as this =
         with get () = Log.Logger
         and set (value) = Log.Logger <- value
 
-    member this.SubscribeAsync interceptors consumerConfig =
+    member internal this.SubscribeAsync interceptors consumerConfig =
         task {
             checkIfActive()
             return! this.SingleTopicSubscribeAsync interceptors consumerConfig

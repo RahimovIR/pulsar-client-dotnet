@@ -135,7 +135,7 @@ type internal ConnectionHandler( parentPrefix: string,
 
     member this.CheckIfActive() =
         match this.ConnectionState with
-        | Ready _ | Connecting -> Ok ()
-        | Closing | Closed -> AlreadyClosedException(prefix + "already closed") |> Result.Error
-        | Terminated ->  AlreadyClosedException(prefix + " topic was terminated") |> Result.Error
-        | Failed | Uninitialized ->  NotConnectedException(prefix + " not connected") |> Result.Error
+        | Ready _ | Connecting -> null
+        | Closing | Closed -> AlreadyClosedException(prefix + "already closed")
+        | Terminated ->  AlreadyClosedException(prefix + " topic was terminated")
+        | Failed | Uninitialized ->  NotConnectedException(prefix + " not connected")

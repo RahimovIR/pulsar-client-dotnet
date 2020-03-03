@@ -466,28 +466,28 @@ type internal ProducerImpl private (producerConfig: ProducerConfiguration, clien
 
         member this.SendAndForgetAsync (message: byte[]) =
             task {
-                connectionHandler.CheckIfActive()
+                connectionHandler.CheckIfActive() |> throwIfNotNull
                 let! _ = this.SendMessage (MessageBuilder(message))
                 return ()
             }
 
         member this.SendAndForgetAsync (message: MessageBuilder) =
             task {
-                connectionHandler.CheckIfActive()
+                connectionHandler.CheckIfActive() |> throwIfNotNull
                 let! _ = this.SendMessage message
                 return ()
             }
 
         member this.SendAsync (message: byte[]) =
             task {
-                connectionHandler.CheckIfActive()
+                connectionHandler.CheckIfActive() |> throwIfNotNull
                 let! tcs = this.SendMessage (MessageBuilder(message))
                 return! tcs.Task
             }
 
         member this.SendAsync (message: MessageBuilder) =
             task {
-                connectionHandler.CheckIfActive()
+                connectionHandler.CheckIfActive() |> throwIfNotNull
                 let! tcs = this.SendMessage message
                 return! tcs.Task
             }
