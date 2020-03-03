@@ -55,7 +55,7 @@ let tests =
                     .Topic(topicName)
                     .ConsumerName("concurrent")
                     .SubscriptionName("test-subscription")
-                    .Intercept([ConsumerInterceptor()])
+                    .Intercept(ConsumerInterceptor())
                     .SubscribeAsync() |> Async.AwaitTask
 
             let producerTask =

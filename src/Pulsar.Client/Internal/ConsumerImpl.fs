@@ -828,6 +828,7 @@ type internal ConsumerImpl internal (consumerConfig: ConsumerConfiguration, clie
 
         member this.CloseAsync() =
             task {
+                interceptors.Close()
                 match connectionHandler.ConnectionState with
                 | Closing | Closed ->
                     return ()
