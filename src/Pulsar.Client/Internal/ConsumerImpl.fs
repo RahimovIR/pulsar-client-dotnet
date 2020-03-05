@@ -786,10 +786,9 @@ type internal ConsumerImpl (consumerConfig: ConsumerConfiguration, clientConfig:
             
         member this.AcknowledgeAsync (msgs: Messages) =
             task {
-                let exn = connectionHandler.CheckIfActive()
                 for msg in msgs do
-                    interceptors.OnAcknowledge(this, msg.MessageId, exn)
-                throwIfNotNull exn
+                    interceptors.OnAcknowledge(this, msg.MessageId, null)
+                connectionHandler.CheckIfActive() |> throwIfNotNull
 
                 for msg in msgs do
                     mb.Post(Acknowledge(msg.MessageId, AckType.Individual))
@@ -855,10 +854,9 @@ type internal ConsumerImpl (consumerConfig: ConsumerConfiguration, clientConfig:
 
         member this.NegativeAcknowledge (msgs: Messages)  =
             task {
-                let exn = connectionHandler.CheckIfActive()
                 for msg in msgs do
-                    interceptors.OnNegativeAcksSend(this, msg.MessageId, exn)
-                throwIfNotNull exn
+                    interceptors.OnNegativeAcksSend(this, msg.MessageId, null)
+                connectionHandler.CheckIfActive() |> throwIfNotNull 
 
                 for msg in msgs do
                     mb.Post(NegativeAcknowledge(msg.MessageId))

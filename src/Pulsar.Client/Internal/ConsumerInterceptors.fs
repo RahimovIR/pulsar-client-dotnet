@@ -7,7 +7,7 @@ open Pulsar.Client.Common
 
 type internal ConsumerInterceptors(interceptors: IConsumerInterceptor array) =
      member this.Interceptors = interceptors
-     static member Empty with get() = ConsumerInterceptors(Array.empty)
+     static member Empty with get() = ConsumerInterceptors([||])
      
      member this.BeforeConsume (consumer: IConsumer, msg: Message) =
           let mutable interceptorMessage = msg         

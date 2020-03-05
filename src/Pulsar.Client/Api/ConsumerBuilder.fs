@@ -154,7 +154,7 @@ type ConsumerBuilder private (client: PulsarClient, config: ConsumerConfiguratio
     member this.Intercept ([<ParamArray>] interceptors: IConsumerInterceptor array) =
         if interceptors.Length = 0 then this
         else
-            ConsumerInterceptors(Array.append interceptors consumerInterceptors.Interceptors)
+            ConsumerInterceptors(Array.append consumerInterceptors.Interceptors interceptors)
             |> this.With
     
     member this.SubscribeAsync() =
