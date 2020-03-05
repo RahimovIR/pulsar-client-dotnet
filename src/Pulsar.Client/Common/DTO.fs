@@ -253,7 +253,18 @@ type MessageBuilder =
                 DeliverAt = deliverAt
             }
 
+    member this.With (value: byte[]) =
+        MessageBuilder(value, UMX.untag this.Key, this.Properties, this.DeliverAt)
 
+    member this.With (key: string) =
+        MessageBuilder(this.Value, key, this.Properties, this.DeliverAt)
+        
+    member this.With (properties:IReadOnlyDictionary<string, string>) =
+        MessageBuilder(this.Value, UMX.untag this.Key, properties, this.DeliverAt)
+
+    member this.With (deliverAt:Nullable<int64>) =
+        MessageBuilder(this.Value, UMX.untag this.Key, this.Properties, deliverAt)
+        
 type internal WriterStream = Stream
 type internal Payload = WriterStream -> Task
 type internal Connection =
@@ -264,8 +275,8 @@ type internal Connection =
     }
 type internal RedeliverSet = HashSet<MessageId>
 
-type internal SingleCallback = TaskCompletionSource<MessageId>
-type internal BatchCallback = BatchDetails * TaskCompletionSource<MessageId>
+type internal SingleCallback = MessageBuilder * TaskCompletionSource<MessageId>
+type internal BatchCallback = BatchDetails * MessageBuilder * TaskCompletionSource<MessageId>
 type internal PendingCallback = 
     | SingleCallback of SingleCallback
     | BatchCallbacks of BatchCallback[]

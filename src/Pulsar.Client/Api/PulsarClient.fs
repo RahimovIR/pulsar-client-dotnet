@@ -131,18 +131,18 @@ type PulsarClient(config: PulsarClientConfiguration) as this =
                 return consumer :> IConsumer
         }
 
-    member this.CreateProducerAsync (producerConfig: ProducerConfiguration) =
+    member internal this.CreateProducerAsync (interceptors: ProducerInterceptors) (producerConfig: ProducerConfiguration) =
         task {
             checkIfActive()
             Log.Logger.LogDebug("CreateProducerAsync started")
             let! metadata = getPartitionedTopicMetadata producerConfig.Topic.CompleteTopicName
             let removeProducer = fun producer -> mb.Post(RemoveProducer producer)
             if (metadata.Partitions > 0) then
-                let! producer = PartitionedProducerImpl.Init(producerConfig, config, connectionPool, metadata.Partitions, lookupService, removeProducer)
+                let! producer = PartitionedProducerImpl.Init(producerConfig, config, connectionPool, metadata.Partitions, lookupService, interceptors, removeProducer)
                 mb.Post(AddProducer producer)
                 return producer
             else
-                let! producer = ProducerImpl.Init(producerConfig, config, connectionPool, -1, lookupService, removeProducer)
+                let! producer = ProducerImpl.Init(producerConfig, config, connectionPool, -1, lookupService, interceptors, removeProducer)
                 mb.Post(AddProducer producer)
                 return producer
         }
